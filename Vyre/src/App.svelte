@@ -148,11 +148,7 @@
             
             {#each servers as server}
               <div class="server-item" class:active={activeServerId === server.id} on:click={() => navigateToServer(server.id)}>
-                {#if server.icon}
-                  <img src={server.icon} alt={server.name} />
-                {:else}
-                  <div class="server-icon">{server.name.charAt(0)}</div>
-                {/if}
+                <div class="server-icon">{server.name.charAt(0).toUpperCase()}</div>
               </div>
             {/each}
             
