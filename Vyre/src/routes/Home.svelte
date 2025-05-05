@@ -6,6 +6,9 @@
   
   const dispatch = createEventDispatcher();
   
+  // Add serverId property to receive from parent component
+  export let serverId: string | null = null;
+  
   interface ChatType {
     id: number;
     name: string;
@@ -175,20 +178,38 @@
       chats = await response.json();
       console.log('Загружено чатов:', chats.length);
       
-      // Получаем список пользователей для отображения
-      const usersResponse = await fetch('http://localhost:3000/api/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // Если выбран сервер, загружаем пользователей этого сервера
+      if (serverId) {
+        console.log(`Загрузка пользователей для сервера с ID: ${serverId}`);
+        const serverMembersResponse = await fetch(`http://localhost:3000/api/servers/${serverId}/members`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!serverMembersResponse.ok) {
+          const errorText = await serverMembersResponse.text();
+          console.error(`Ошибка загрузки участников сервера: ${serverMembersResponse.status}`, errorText);
+          throw new Error(`Не удалось загрузить участников сервера: ${errorText}`);
         }
-      });
-      
-      if (!usersResponse.ok) {
-        const errorText = await usersResponse.text();
-        console.error(`Ошибка загрузки пользователей: ${usersResponse.status}`, errorText);
-        throw new Error(`Не удалось загрузить пользователей: ${errorText}`);
+        
+        users = await serverMembersResponse.json();
+      } else {
+        // Если сервер не выбран, загружаем всех пользователей
+        const usersResponse = await fetch('http://localhost:3000/api/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!usersResponse.ok) {
+          const errorText = await usersResponse.text();
+          console.error(`Ошибка загрузки пользователей: ${usersResponse.status}`, errorText);
+          throw new Error(`Не удалось загрузить пользователей: ${errorText}`);
+        }
+        
+        users = await usersResponse.json();
       }
-      
-      users = await usersResponse.json();
       
       // Считаем статистику пользователей
       onlineCount = users.filter(user => user.is_online === 1).length;
@@ -214,30 +235,44 @@
       socket.on('userStatusChanged', (data: { userId: number, isOnline: boolean, username: string }) => {
         console.log('Пользователь изменил статус:', data);
         
-        // Обновляем статус пользователя в списке
-        const userIndex = users.findIndex(user => user.id === data.userId);
-        
-        if (userIndex !== -1) {
-          // Обновляем статус существующего пользователя
-          users[userIndex].is_online = data.isOnline ? 1 : 0;
-          users = [...users]; // Для того чтобы Svelte обновил компонент
+        // Если выбран конкретный сервер, проверяем принадлежит ли пользователь серверу
+        if (serverId) {
+          const userIndex = users.findIndex(user => user.id === data.userId);
+          if (userIndex !== -1) {
+            // Обновляем статус существующего пользователя в списке сервера
+            users[userIndex].is_online = data.isOnline ? 1 : 0;
+            users = [...users]; // Для того чтобы Svelte обновил компонент
+            
+            // Пересчитываем статистику
+            onlineCount = users.filter(user => user.is_online === 1).length;
+            offlineCount = users.length - onlineCount;
+          }
         } else {
-          // Если пользователя нет в списке, добавляем его
-          users = [...users, {
-            id: data.userId,
-            username: data.username,
-            is_online: data.isOnline ? 1 : 0
-          }];
+          // Если сервер не выбран, обновляем для всех пользователей
+          const userIndex = users.findIndex(user => user.id === data.userId);
+          
+          if (userIndex !== -1) {
+            // Обновляем статус существующего пользователя
+            users[userIndex].is_online = data.isOnline ? 1 : 0;
+            users = [...users]; // Для того чтобы Svelte обновил компонент
+          } else {
+            // Если пользователя нет в списке, добавляем его
+            users = [...users, {
+              id: data.userId,
+              username: data.username,
+              is_online: data.isOnline ? 1 : 0
+            }];
+          }
+          
+          // Пересчитываем статистику
+          onlineCount = users.filter(user => user.is_online === 1).length;
+          offlineCount = users.length - onlineCount;
         }
-        
-        // Пересчитываем статистику
-        onlineCount = users.filter(user => user.is_online === 1).length;
-        offlineCount = users.length - onlineCount;
       });
       
     } catch (err) {
       console.error('Ошибка:', err);
-      error = err instanceof Error ? err.message : 'Не удалось загрузить чаты';
+      error = err instanceof Error ? err.message : 'Не удалось загрузить данные';
       
       // Проверяем, связана ли ошибка с недоступностью сервера
       if (err instanceof Error && 
@@ -254,6 +289,12 @@
   onMount(async () => {
     await loadData();
   });
+  
+  // Reload data when serverId changes
+  $: if (serverId !== undefined) {
+    console.log(`ServerId changed to ${serverId}, reloading data...`);
+    loadData();
+  }
   
   onDestroy(() => {
     // Отключаем сокет при уничтожении компонента
