@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vyre</title>
+    <!-- Инлайновые стили для базового отображения -->
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #0f172a;
+        color: white;
+        font-family: sans-serif;
+      }
+      
+      #app {
+        width: 100%;
+        height: 100vh;
+      }
+      
+      .fallback {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        text-align: center;
+        padding: 1rem;
+      }
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        border-top-color: #38bdf8;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+    <!-- Скрипт для обнаружения и отображения ошибок JavaScript -->
+    <script>
+      console.log('HTML документ начинает загрузку');
+      
+      // Обработчик глобальных ошибок JavaScript
+      window.onerror = function(message, source, lineno, colno, error) {
+        console.error('Глобальная ошибка JS:', message);
+        showError(message);
+        return true; // Предотвращаем стандартное поведение ошибки
+      };
+      
+      // Отображение ошибки на странице
+      function showError(message) {
+        const appElement = document.getElementById('app');
+        if (appElement) {
+          appElement.innerHTML = `
+            <div class="fallback">
+              <h2 style="color: #ef4444;">Ошибка при загрузке</h2>
+              <p>${message || 'Неизвестная ошибка'}</p>
+              <button onclick="location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #38bdf8; border: none; color: white; border-radius: 4px; cursor: pointer;">
+                Перезагрузить страницу
+              </button>
+            </div>
+          `;
+        }
+      }
+      
+      // Удален таймер для отслеживания зависания загрузки
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Удален начальный индикатор загрузки -->
+    </div>
+    <!-- Скрипт для проверки DOM-дерева перед загрузкой модулей -->
+    <script>
+      console.log('DOM-дерево готово, элемент #app:', !!document.getElementById('app'));
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
